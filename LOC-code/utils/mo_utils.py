@@ -1,274 +1,96 @@
-from utils.print_utils import print_dict
-#!/usr/bin/env python
-# coding: utf-8
+from __future__ import annotations
 
-# In[1]:
+import re
+from collections import defaultdict
 
-
-import import_ipynb
-
-
-# In[ ]:
+MO_HEADER = re.compile(r"MO\s+#?\s*(\d+).*(Occ:\s*([0-9.]+))")
+FLOAT_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
 
 
+def parse_mo_coefficients(lines: list[str], occupied_threshold: float = 1.5) -> dict[int, dict[str, float]]:
+    """
+    Parse occupied MO coefficient sections from quantum-chemistry logs.
 
+    Expected shape (loosely):
+      MO # 3 Energy: ... Occ: 2
+      0 C 2pz    0.1234
+      1 O 2pz    0.5678
+    """
+    mo_dict: dict[int, dict[str, float]] = defaultdict(dict)
+    current_mo: int | None = None
+    collect = False
 
-
-# In[2]:
-
-
-from openfile import open_log
-from openfile import open_xyz
-
-
-# In[3]:
-
-
-
-
-# In[4]:
-
-
-lines=open_log("fb_pyrrole.log",encoding="utf-8")
-rows,data=open_xyz("pyrrole.xyz")
-
-
-# In[5]:
-
-
-import collections
-#file = open_log()
-#lines=file.readlines()
-#file=open(filename,"r"
-## get the M
-def MO_coeff():
-    MO_dict = collections.defaultdict(dict)
-    MO_list = []
-    MO_level= 0
-    start=0
-
-    for line in lines:
- 
-        if ('MO') in line:
-            #if start==1:
-            #    print("\nmo level: ", MO_level)
-            #    print(MO_dict[MO_level])
-     
-            if ('Occ: 2') in line:
-                line = line.strip().split()
-                MO_level=int(line[2])
-                MO_list.append(MO_level)
-                start=1
-            else:
-                start=0
-            
-            
-        elif start==1:
-            line = line.strip().split()
-            coeff = line[-1]
-            atom_label = ("-").join(line[0:2])
-            #atom_label=("-").join(line[2:0])
-            
-            if MO_level not in MO_dict:
-                MO_dict[MO_level][atom_label]= float(coeff)
-            elif atom_label not in MO_dict[MO_level]:
-                MO_dict[MO_level][atom_label]= float(coeff)
-            else:
-                MO_dict[MO_level][atom_label]= MO_dict[MO_level][atom_label] + float(coeff)
-                
-    return MO_dict, MO_list
-
-
-# In[6]:
-
-
-MO_dict, MO_list = MO_coeff()
-print(MO_list)
-
-
-# In[7]:
-
-
-print(rows[1])
-smi=rows[1].split()[1]
-print(smi)
-
-
-# In[8]:
-
-
-import rdkit
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-from rdkit.Chem import Atom
-#name=input('enter the smiles format: ')
-def val_elec():
-   # chcl3=Chem.MolFromSmiles(name)
-    m=Chem.MolFromSmiles(smi)
-   # m=Chem.MolFromSmiles('F[Si](F)(F)F')
-    #m=Chem.MolFromSmiles('FS(F)(F)(F)(F)F') ## PCL5
-    #m=Chem.MolFromSmiles('C(Cl)(Cl)(Cl)Cl')  ## C2F2H2-cis
-    #m=Chem.MolFromSmiles('C=C=C')  ## allene
-    #m=Chem.MolFromSmiles('C[N+](=O)[O-]') ## Nitromethane
-    #m=Chem.MolFromSmiles('[O-][S++]([O-])(C)C') ## (CH3)2SO
-    valm=Chem.Descriptors.NumValenceElectrons(m)
-    valshell=valm//2
-    #print(valchcl3//2)
-    return valshell
-
-
-# In[9]:
-
-
-#val_elec()
-
-
-# In[10]:
-
-
-def modified_mo_list():
-    global MO_list
-    val=val_elec()
-    #val=9
-    print("Valency: ", val)
-    MO_list = MO_list[-val:]
-    
-modified_mo_list()
-print("Modified mo list ", MO_list)
-
-
-# In[11]:
-
-
-all_atom_dict = collections.defaultdict(list)
-mo_index_all = collections.defaultdict(list)
-
-def atom_types():
-    number=0
-    H={'H':0}
-    first_row={'C':0,'O':0,'F':0,'N':0,'B':0}
-    second_row={'Na':0,'Al':0,'Si':0,'P':0,'S':0,'Cl':0}
-    
-    # one MO will have all the atom types hence, MO_dict[0]
-    for atom in MO_dict[0].keys():
-        
-        # Initialize all atoms for (MO, coeff) list
-        if atom not in all_atom_dict:
-            all_atom_dict[atom] = []
-            mo_index_all[atom] = []
-          
-        # Find no. of atoms
-        atom = atom.split('-')[1]
-        #print(atom)
-        if atom in H:
-            H[atom] += 1
-        elif atom in first_row:
-            first_row[atom] += 1
-        else:
-            second_row[atom] += 1
-        
-    return H, first_row, second_row        
-    #print(H, first_row, second_row)
-
-
-# In[12]:
-
-
-atom_types()
-
-
-# In[13]:
-
-
-H=['H']
-first_row=['C','N','O','F','B']
-second_row=['Al','Si','P','S','Cl']
-
-
-def create_mo_coeff_pair():
-    global all_atom_dict
-    
-    for mo in MO_dict.keys():
-        if mo not in MO_list:
+    for raw in lines:
+        line = raw.strip()
+        if not line:
             continue
-        #print("\n", mo,)
-        for atom in MO_dict[mo].keys():
-            #print(atom)
-            if atom in all_atom_dict.keys():
-                all_atom_dict[atom].append((mo, MO_dict[mo][atom]))
-                #mo_index_all[atom].append(mo)
-                
-                #print (atom, (mo, MO_dict[mo][atom]))
+
+        header_match = MO_HEADER.search(line)
+        if header_match:
+            mo_idx = int(header_match.group(1))
+            occ = float(header_match.group(3))
+            collect = occ >= occupied_threshold
+            current_mo = mo_idx if collect else None
+            continue
+
+        if current_mo is None:
+            continue
+
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+
+        # require leading integer atom index
+        if not parts[0].isdigit():
+            continue
+
+        atom_index = parts[0]
+        symbol = parts[1]
+        coeff_match = FLOAT_RE.search(parts[-1])
+        if coeff_match is None:
+            continue
+
+        atom_label = f"{atom_index}-{symbol}"
+        coeff = float(coeff_match.group(0))
+        mo_dict[current_mo][atom_label] = mo_dict[current_mo].get(atom_label, 0.0) + abs(coeff)
+
+    return dict(mo_dict)
 
 
-        
-    
+def build_atom_mo_coefficients(
+    mo_dict: dict[int, dict[str, float]],
+    max_occupied_mos: int | None = None,
+) -> dict[str, list[tuple[int, float]]]:
+    """Convert MO-centric coefficients to atom-centric sorted lists."""
+    atom_map: dict[str, list[tuple[int, float]]] = defaultdict(list)
+
+    mo_levels = sorted(mo_dict)
+    if max_occupied_mos is not None:
+        mo_levels = mo_levels[-max_occupied_mos:]
+
+    for mo in mo_levels:
+        for atom_label, coeff in mo_dict[mo].items():
+            atom_map[atom_label].append((mo, coeff))
+
+    for atom_label in atom_map:
+        atom_map[atom_label].sort(key=lambda item: item[1], reverse=True)
+
+    return dict(atom_map)
 
 
-# In[14]:
-
-
-create_mo_coeff_pair()
-
-
-# In[15]:
-
-
-#print_dict(all_atom_dict)
-
-
-# In[16]:
-
-
-
-
-def get_top_atom_coeff(central_atom, num_coeff,atom_type,x):
-    top_atom_coeff_dict1 = collections.defaultdict(list)
-
-    for atom in all_atom_dict:
-        temp = atom.split('-')[1]
-        
-        if central_atom == atom:
-            temp_list = get_top_n_ele(all_atom_dict[atom], num_coeff)
-        elif atom_type == atom:
-            temp_list = get_top_n_ele(all_atom_dict[atom], x)
-        elif 'H' in atom:
-            temp_list = get_top_n_ele(all_atom_dict[atom], 1)
-        elif 'Al'==temp or 'B' == temp:
-            temp_list = get_top_n_ele(all_atom_dict[atom], 3)
-        else: ## for first and second row
-            temp_list = get_top_n_ele(all_atom_dict[atom], 4)
-        
-        top_atom_coeff_dict1[atom] = temp_list
-    return top_atom_coeff_dict1
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+def get_top_atom_coeff(
+    atom_coeff: dict[str, list[tuple[int, float]]],
+    central_atom: str | None = None,
+    num_coeff: int = 4,
+) -> dict[str, list[tuple[int, float]]]:
+    out: dict[str, list[tuple[int, float]]] = {}
+    for atom, pairs in atom_coeff.items():
+        if atom == central_atom:
+            out[atom] = pairs[: max(1, num_coeff)]
+        elif atom.endswith("-H"):
+            out[atom] = pairs[:1]
+        elif atom.endswith("-B") or atom.endswith("-Al"):
+            out[atom] = pairs[:3]
+        else:
+            out[atom] = pairs[:4]
+    return out

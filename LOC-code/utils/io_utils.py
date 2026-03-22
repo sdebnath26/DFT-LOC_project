@@ -1,95 +1,70 @@
-#!/usr/bin/env python
-# coding: utf-8
+from __future__ import annotations
 
-# In[1]:
-
-
-import os
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
-
-
-# In[2]:
-
-
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 
-# In[3]:
+@dataclass(frozen=True)
+class AtomRecord:
+    symbol: str
+    x: float
+    y: float
+    z: float
 
 
-file_path = Path(r"Propane-new.xyz")
+@dataclass(frozen=True)
+class Molecule:
+    atom_count: int
+    title: str
+    atoms: tuple[AtomRecord, ...]
 
 
-# In[ ]:
+@dataclass(frozen=True)
+class OrbitalContribution:
+    atom_label: str
+    coefficient: float
 
 
+def open_xyz(path: str | Path, encoding: str = "utf-8") -> Molecule:
+    """Read an XYZ file into a structured Molecule object."""
+    text = Path(path).read_text(encoding=encoding).strip()
+    rows = [row for row in text.splitlines() if row.strip()]
+    if len(rows) < 2:
+        raise ValueError(f"Invalid XYZ file (too short): {path}")
+
+    atom_count = int(rows[0].strip())
+    title = rows[1].strip()
+    atom_rows = rows[2:]
+
+    # Some files include an extra charge/multiplicity line after the title.
+    if len(atom_rows) == atom_count + 1:
+        atom_rows = atom_rows[1:]
+
+    if len(atom_rows) != atom_count:
+        raise ValueError(
+            f"Invalid XYZ file {path}: expected {atom_count} atom lines, found {len(atom_rows)}"
+        )
+
+    atoms: list[AtomRecord] = []
+    for row in atom_rows:
+        parts = row.split()
+        if len(parts) < 4:
+            raise ValueError(f"Invalid XYZ atom row: {row}")
+        atoms.append(AtomRecord(parts[0], float(parts[1]), float(parts[2]), float(parts[3])))
+
+    return Molecule(atom_count=atom_count, title=title, atoms=tuple(atoms))
 
 
-
-# In[ ]:
-
-
-
+def open_log(path: str | Path, encoding: str = "utf-8") -> list[str]:
+    """Return raw log lines."""
+    return Path(path).read_text(encoding=encoding).splitlines()
 
 
-# In[4]:
+def atom_labels(mol: Molecule) -> tuple[str, ...]:
+    """Return labels in index-symbol format used by legacy scripts (e.g. '0-C')."""
+    return tuple(f"{i}-{atom.symbol}" for i, atom in enumerate(mol.atoms))
 
 
-def open_xyz(path, encoding="utf-8"):
-    with open(path, encoding=encoding) as file:
-        read= file.read().strip()
-       # read=file.readlines()
-        #return [read,5]
-        rows=read.split("\n")
-        data=[rows[0],rows[1],rows[2]]
-        data=data+[row for row in rows[2:] if row.strip !=""]
-        return rows,data
-    
-
-
-# In[5]:
-
-
-#file=open_xyz("Propane-new.xyz")
-rows,data=open_xyz("Propane-new.xyz")
-
-
-# In[ ]:
-
-
-
-
-
-# In[6]:
-
-
-def open_log(path, encoding="utf-8"):
-    with open(path,encoding=encoding) as file:
-        lines=file.readlines()
-        return lines
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+def element_symbols(mol: Molecule) -> tuple[str, ...]:
+    return tuple(atom.symbol for atom in mol.atoms)
