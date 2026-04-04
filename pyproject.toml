@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dft-loc"
+version = "0.1.0"
+description = "Localized-orbital bond analysis from DFT output (XYZ + MO log)"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+keywords = ["DFT", "localized orbitals", "bond analysis", "quantum chemistry"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/sdebnath26/DFT-LOC_project"
+Repository = "https://github.com/sdebnath26/DFT-LOC_project"
+Issues = "https://github.com/sdebnath26/DFT-LOC_project/issues"
+
+[project.scripts]
+dft-loc = "dft_loc.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
