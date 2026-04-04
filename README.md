@@ -37,7 +37,7 @@ dft-loc analyze --xyz examples/pyrrole.xyz --log examples/fb_pyrrole.log --max-o
 
 Example output:
 ```
-Loaded: examples/pyrrole.xyz (9 atoms)
+Loaded: examples/pyrrole.xyz (10 atoms)
 Loaded: examples/fb_pyrrole.log (243 lines)
 
 Bond summary
