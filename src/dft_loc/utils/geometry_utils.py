@@ -4,7 +4,7 @@ import itertools
 import math
 from collections import defaultdict
 
-from utils.io_utils import Molecule
+from dft_loc.utils.io_utils import Molecule
 
 # Approximate covalent radii in angstroms.
 COVALENT_RADII = {
